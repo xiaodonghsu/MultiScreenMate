@@ -1,0 +1,9 @@
+{
+    "keymap": {
+        "L": "Left",
+        "R": "Right",
+        "U": "Up",
+        "D": "Down",
+        "C": "Space"
+    }
+}
