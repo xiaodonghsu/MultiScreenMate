@@ -28,15 +28,27 @@ object HostScanner {
     data class CidrInfo(val baseIp: String, val mask: Int, val startIp: String, val endIp: String, val totalIps: Int)
     
     fun parseCidr(cidr: String): CidrInfo? {
-        val parts = cidr.trim().split("/")
+        // 严格处理空格：去除所有空格，包括CIDR内部
+        val cleanCidr = cidr.replace("\\s+".toRegex(), "")
+        if (cleanCidr.isEmpty()) return null
+        
+        val parts = cleanCidr.split("/")
         if (parts.size != 2) return null
-        val ip = parts[0]
-        val mask = parts[1].toIntOrNull() ?: return null
+        
+        val ip = parts[0].trim()
+        val mask = parts[1].trim().toIntOrNull() ?: return null
         if (mask < 24 || mask > 32) return null
         if (ip == "0.0.0.0") return null
         
+        // 严格验证IP地址格式
         val octets = ip.split(".")
         if (octets.size != 4) return null
+        
+        // 验证每个IP段都是有效的数字
+        for (octet in octets) {
+            val num = octet.toIntOrNull() ?: return null
+            if (num < 0 || num > 255) return null
+        }
         
         // 计算网络地址和广播地址
         val ipInt = ipToInt(ip)

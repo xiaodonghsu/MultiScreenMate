@@ -81,11 +81,11 @@ class ButtonLayoutManager(private val context: Context) {
     private fun createDefaultLayout(): ButtonLayout {
         return ButtonLayout(
             buttons = listOf(
-                ButtonConfig("U", 0.5f, 0.2f, 0.2f, 0.2f), // 上
-                ButtonConfig("D", 0.5f, 0.8f, 0.2f, 0.2f), // 下
-                ButtonConfig("L", 0.2f, 0.5f, 0.2f, 0.2f), // 左
-                ButtonConfig("R", 0.8f, 0.5f, 0.2f, 0.2f), // 右
-                ButtonConfig("C", 0.5f, 0.5f, 0.2f, 0.2f)  // 中
+                ButtonConfig("U", 0.3f, 0.1f, 0.2f, 0.2f), // 上
+                ButtonConfig("D", 0.5f, 0.4f, 0.2f, 0.2f), // 下
+                ButtonConfig("L", 0.1f, 0.1f, 0.2f, 0.2f), // 左
+                ButtonConfig("R", 0.1f, 0.5f, 0.4f, 0.4f), // 右
+                ButtonConfig("C", 0.5f, 0.1f, 0.2f, 0.2f)  // 中
             )
         )
     }

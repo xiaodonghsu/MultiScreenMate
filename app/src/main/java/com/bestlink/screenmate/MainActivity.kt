@@ -3,6 +3,8 @@ package com.bestlink.screenmate
 import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
@@ -109,6 +111,18 @@ class MainActivity : ComponentActivity() {
     private fun disableNfcReader() {
         nfcAdapter?.disableReaderMode(this)
         readerEnabled = false
+    }
+
+    // 检查是否连接到WiFi
+    private fun isWifiConnected(): Boolean {
+        val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork
+        if (network == null) {
+            return false
+        }
+        
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
+        return networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
     }
 
     // 将 Tag ID 转为 hex 作为“设备代码”，匹配主机 id 并置为选中
@@ -290,11 +304,23 @@ class MainActivity : ComponentActivity() {
                 Button(
                     enabled = !scanning,
                     onClick = {
+                        // 检查WiFi连接
+                        if (!isWifiConnected()) {
+                            Toast.makeText(this@MainActivity, "请先连接到WiFi网络", Toast.LENGTH_LONG).show()
+                            return@Button
+                        }
+                        
                         scanning = true
                         // 重新扫描（按输入CIDR，支持掩码24-32）
                         val cidrInfo = HostScanner.parseCidr(cidrInput.text)
                         if (cidrInfo == null) {
-                            Toast.makeText(this@MainActivity, "请输入合法的CIDR地址，掩码范围24-32，且地址不能为0.0.0.0", Toast.LENGTH_LONG).show()
+                            // 提供更详细的错误提示
+                            val errorMsg = when {
+                                cidrInput.text.trim().isEmpty() -> "请输入CIDR地址"
+                                !cidrInput.text.contains("/") -> "CIDR格式错误，请使用格式：IP地址/掩码（如192.168.1.1/24）"
+                                else -> "请输入合法的CIDR地址，掩码范围24-32，且地址不能为0.0.0.0"
+                            }
+                            Toast.makeText(this@MainActivity, errorMsg, Toast.LENGTH_LONG).show()
                             scanning = false
                         } else {
                             // 保存CIDR到文件
@@ -347,6 +373,8 @@ class MainActivity : ComponentActivity() {
                                             // 点击跳转到控制界面
                                             val intent = Intent(this@MainActivity, ControlActivity::class.java)
                                             intent.putExtra("host", h)
+                                            // 传递当前主机列表，用于NFC匹配
+                                            intent.putExtra("hosts", hosts.toTypedArray())
                                             startActivity(intent)
                                         },
                                         onLongPress = {
