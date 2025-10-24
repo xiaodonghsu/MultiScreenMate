@@ -150,6 +150,8 @@ class MainActivity : ComponentActivity() {
                 runOnUiThread {
                     val intent = Intent(this, ControlActivity::class.java)
                     intent.putExtra("host", matchedHost)
+                    // 传递完整的主机列表，确保后续NFC切换能正常工作
+                    intent.putExtra("hosts", hosts.toTypedArray())
                     startActivity(intent)
                 }
             } else {
@@ -497,6 +499,22 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier.width(150.dp)
                                 )
                             }
+                        }
+                        
+                        // 震动控制选项
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("控制震动:")
+                            Switch(
+                                checked = keymapConfig.enableVibration,
+                                onCheckedChange = { checked ->
+                                    keymapConfig = keymapConfig.copy(enableVibration = checked)
+                                }
+                            )
                         }
                     }
                 },

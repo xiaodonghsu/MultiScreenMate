@@ -121,6 +121,8 @@ class ControlActivity : ComponentActivity() {
                 // 创建新的Intent并切换到匹配的主机
                 val intent = Intent(this, ControlActivity::class.java)
                 intent.putExtra("host", matchedHost)
+                // 传递完整的主机列表，确保后续切换也能正常工作
+                intent.putExtra("hosts", hosts.toTypedArray())
                 startActivity(intent)
                 
                 // 结束当前Activity

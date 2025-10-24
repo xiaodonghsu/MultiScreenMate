@@ -28,6 +28,7 @@ import com.bestlink.screenmate.config.ButtonLayoutManager
 import com.bestlink.screenmate.config.ConfigManager
 import com.bestlink.screenmate.net.Host
 import com.bestlink.screenmate.net.WsClient
+import com.bestlink.screenmate.util.VibrationUtil
 import kotlinx.coroutines.launch
 
 @Composable
@@ -91,6 +92,12 @@ fun CustomControlScreen(
                                 else -> ""
                             }
                             if (command.isNotEmpty()) {
+                                // 根据配置决定是否震动
+                                val config = configManager.loadConfig()
+                                if (config.enableVibration) {
+                                    VibrationUtil.vibrateShort(context)
+                                }
+                                
                                 coroutineScope.launch {
                                     wsClient.ensureConnectedAndSendKey(command)
                                 }

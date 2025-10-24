@@ -16,7 +16,8 @@ class ConfigManager(private val context: Context) {
             "U" to "Up",
             "D" to "Down",
             "C" to "Space"
-        )
+        ),
+        val enableVibration: Boolean = true
     )
     
     fun loadConfig(): KeymapConfig {
@@ -37,7 +38,10 @@ class ConfigManager(private val context: Context) {
                 keymap[key] = keymapJson.getString(key)
             }
             
-            KeymapConfig(keymap)
+            // 读取震动配置，默认为true
+            val enableVibration = json.optBoolean("enableVibration", true)
+            
+            KeymapConfig(keymap, enableVibration)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load config, using default", e)
             KeymapConfig()
@@ -52,6 +56,7 @@ class ConfigManager(private val context: Context) {
                 keymapJson.put(key, value)
             }
             json.put("keymap", keymapJson)
+            json.put("enableVibration", config.enableVibration)
             
             configFile.writeText(json.toString())
             true
