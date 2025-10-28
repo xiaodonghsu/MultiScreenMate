@@ -24,8 +24,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
 import com.bestlink.screenmate.net.Host
 import com.bestlink.screenmate.net.HostScanner
 import com.bestlink.screenmate.net.WsClient
@@ -77,16 +83,16 @@ class MainActivity : ComponentActivity() {
         disableNfcReader()
     }
 
-    // 音量键拦截：上=向左，下=向右
+    // 音量键拦截：使用专门的音量键映射
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         val config = configManager.loadConfig()
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
-                sendToSelected(config.keymap["L"] ?: "Left")
+                sendToSelected(config.volumeKeymap["VOLUME_UP"] ?: "Left")
                 return true
             }
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                sendToSelected(config.keymap["R"] ?: "Right")
+                sendToSelected(config.volumeKeymap["VOLUME_DOWN"] ?: "Right")
                 return true
             }
         }
@@ -261,9 +267,11 @@ class MainActivity : ComponentActivity() {
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // CIDR输入框和回填按钮行
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
                         value = cidrInput,
@@ -273,19 +281,41 @@ class MainActivity : ComponentActivity() {
                         },
                         label = { Text("扫描CIDR") },
                         singleLine = true,
-                        modifier = Modifier.weight(0.7f)
+                        modifier = Modifier.weight(1f)
                     )
-
-                    OutlinedTextField(
-                        value = portInput,
-                        onValueChange = {
-                            portInput = it
-                            inputError = null
+                    
+                    // 回填当前WiFi IP按钮
+                    IconButton(
+                        onClick = {
+                            // 检查WiFi连接
+                            if (!isWifiConnected()) {
+                                Toast.makeText(this@MainActivity, "请先连接到WiFi网络", Toast.LENGTH_LONG).show()
+                                return@IconButton
+                            }
+                            
+                            val currentIp = HostScanner.getLocalIp(this@MainActivity)
+                            if (currentIp.isEmpty() || currentIp == "0.0.0.0") {
+                                Toast.makeText(this@MainActivity, "无法获取当前WiFi IP地址", Toast.LENGTH_LONG).show()
+                                return@IconButton
+                            }
+                            
+                            // 构造CIDR格式（使用默认掩码24）
+                            val newCidr = "$currentIp/24"
+                            cidrInput = TextFieldValue(newCidr)
+                            
+                            // 保存到文件
+                            val cidrFile = File(cacheDir, "cidr.txt")
+                            cidrFile.writeText(newCidr)
+                            
+                            Toast.makeText(this@MainActivity, "已回填当前WiFi CIDR: $newCidr", Toast.LENGTH_SHORT).show()
                         },
-                        label = { Text("端口") },
-                        singleLine = true,
-                        modifier = Modifier.weight(0.3f)
-                    )
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = "回填当前WiFi CIDR"
+                        )
+                    }
                 }
 
                 // 扫描进度列表
@@ -303,6 +333,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // 扫描按钮
                 Button(
                     enabled = !scanning,
                     onClick = {
@@ -329,13 +360,11 @@ class MainActivity : ComponentActivity() {
                             val cidrFile = File(cacheDir, "cidr.txt")
                             cidrFile.writeText(cidrInput.text)
                             
-                            // 保存端口到文件
-                            val portFile = File(cacheDir, "port.txt")
-                            portFile.writeText(portInput.text)
-                            
                             scanningIps = emptyList()
                             CoroutineScope(Dispatchers.IO).launch {
-                                val port = portInput.text.toIntOrNull() ?: 56789
+                                // 使用ConfigManager中的端口配置
+                                val config = configManager.loadConfig()
+                                val port = config.scanPort
                                 val found = HostScanner.scanCidr(
                                     cidrInfo,
                                     appName,
@@ -467,72 +496,243 @@ class MainActivity : ComponentActivity() {
 
         // 配置对话框
         if (showConfig) {
-            AlertDialog(
-                onDismissRequest = { showConfig = false },
-                title = { Text("按键配置") },
-                text = {
-                    Column {
-                        keymapConfig.keymap.entries.sortedBy { it.key }.forEach { (key, value) ->
+            // 获取资源中的按键选项
+            val localContext = LocalContext.current
+            val keyOptions = localContext.resources.getStringArray(R.array.key_options)
+            val keyDisplayNames = localContext.resources.getStringArray(R.array.key_display_names)
+            val screenKeyLabels = localContext.resources.getStringArray(R.array.screen_key_labels)
+            val screenKeyValues = localContext.resources.getStringArray(R.array.screen_key_values)
+            val volumeKeyLabels = localContext.resources.getStringArray(R.array.volume_key_labels)
+            val volumeKeyValues = localContext.resources.getStringArray(R.array.volume_key_values)
+            
+            Dialog(
+                onDismissRequest = { showConfig = false }
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .heightIn(max = 500.dp),
+                    shape = MaterialTheme.shapes.extraLarge
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Text(
+                            text = "按键配置",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // 可滚动的内容区域
+                        Column(
+                            modifier = Modifier
+                                .verticalScroll(rememberScrollState())
+                                .weight(1f, fill = false)
+                        ) {
+                            // 屏幕按键映射
+                            Text("屏幕按键映射", style = MaterialTheme.typography.titleSmall)
+                            screenKeyValues.forEachIndexed { index, key ->
+                                val currentValue = keymapConfig.keymap[key] ?: when (key) {
+                                    "U" -> "Up"
+                                    "D" -> "Down"
+                                    "L" -> "Left"
+                                    "R" -> "Right"
+                                    "C" -> "Space"
+                                    else -> "Left"
+                                }
+                                
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(screenKeyLabels[index])
+                                    
+                                    var expanded by remember { mutableStateOf(false) }
+                                    Box(
+                                        modifier = Modifier.width(150.dp)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = currentValue,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        
+                                        // 下拉箭头和点击区域
+                                        Box(
+                                            modifier = Modifier
+                                                .matchParentSize()
+                                                .clickable { expanded = true }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.ArrowDropDown,
+                                                contentDescription = "下拉选择",
+                                                modifier = Modifier
+                                                    .align(Alignment.CenterEnd)
+                                                    .padding(end = 8.dp)
+                                            )
+                                        }
+                                        
+                                        DropdownMenu(
+                                            expanded = expanded,
+                                            onDismissRequest = { expanded = false }
+                                        ) {
+                                            keyOptions.forEach { option ->
+                                                DropdownMenuItem(
+                                                    text = { 
+                                                        val displayIndex = keyOptions.indexOf(option)
+                                                        Text(keyDisplayNames.getOrElse(displayIndex) { option })
+                                                    },
+                                                    onClick = {
+                                                        val newKeymap = keymapConfig.keymap.toMutableMap()
+                                                        newKeymap[key] = option
+                                                        keymapConfig = keymapConfig.copy(keymap = newKeymap)
+                                                        expanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // 音量键映射
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("音量键映射", style = MaterialTheme.typography.titleSmall)
+                            
+                            volumeKeyValues.forEachIndexed { index, volumeKey ->
+                                val currentValue = keymapConfig.volumeKeymap[volumeKey] ?: when (volumeKey) {
+                                    "VOLUME_UP" -> "Left"
+                                    "VOLUME_DOWN" -> "Right"
+                                    else -> "Left"
+                                }
+                                
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(volumeKeyLabels[index])
+                                    
+                                    var expanded by remember { mutableStateOf(false) }
+                                    Box(
+                                        modifier = Modifier.width(150.dp)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = currentValue,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        
+                                        // 下拉箭头和点击区域
+                                        Box(
+                                            modifier = Modifier
+                                                .matchParentSize()
+                                                .clickable { expanded = true }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.ArrowDropDown,
+                                                contentDescription = "下拉选择",
+                                                modifier = Modifier
+                                                    .align(Alignment.CenterEnd)
+                                                    .padding(end = 8.dp)
+                                            )
+                                        }
+                                        
+                                        DropdownMenu(
+                                            expanded = expanded,
+                                            onDismissRequest = { expanded = false }
+                                        ) {
+                                            keyOptions.forEach { option ->
+                                                DropdownMenuItem(
+                                                    text = { 
+                                                        val displayIndex = keyOptions.indexOf(option)
+                                                        Text(keyDisplayNames.getOrElse(displayIndex) { option })
+                                                    },
+                                                    onClick = {
+                                                        val newVolumeKeymap = keymapConfig.volumeKeymap.toMutableMap()
+                                                        newVolumeKeymap[volumeKey] = option
+                                                        keymapConfig = keymapConfig.copy(volumeKeymap = newVolumeKeymap)
+                                                        expanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // 震动控制选项
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    when (key) {
-                                        "U" -> "上键 (U):"
-                                        "D" -> "下键 (D):"
-                                        "L" -> "左键 (L):"
-                                        "R" -> "右键 (R):"
-                                        "C" -> "中键 (C):"
-                                        else -> "按键 $key:"
+                                Text("控制震动:")
+                                Switch(
+                                    checked = keymapConfig.enableVibration,
+                                    onCheckedChange = { checked ->
+                                        keymapConfig = keymapConfig.copy(enableVibration = checked)
                                     }
                                 )
+                            }
+                            
+                            // 端口配置选项
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("扫描端口配置", style = MaterialTheme.typography.titleSmall)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("扫描端口:")
                                 OutlinedTextField(
-                                    value = value,
+                                    value = keymapConfig.scanPort.toString(),
                                     onValueChange = { newValue ->
-                                        val newKeymap = keymapConfig.keymap.toMutableMap()
-                                        newKeymap[key] = newValue
-                                        keymapConfig = keymapConfig.copy(keymap = newKeymap)
+                                        val port = newValue.toIntOrNull() ?: 56789
+                                        keymapConfig = keymapConfig.copy(scanPort = port)
                                     },
                                     modifier = Modifier.width(150.dp)
                                 )
                             }
                         }
                         
-                        // 震动控制选项
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // 按钮区域
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("控制震动:")
-                            Switch(
-                                checked = keymapConfig.enableVibration,
-                                onCheckedChange = { checked ->
-                                    keymapConfig = keymapConfig.copy(enableVibration = checked)
+                            Button(
+                                onClick = { showConfig = false },
+                                modifier = Modifier.padding(end = 8.dp)
+                            ) {
+                                Text("取消")
+                            }
+                            
+                            Button(
+                                onClick = {
+                                    if (configManager.saveConfig(keymapConfig)) {
+                                        showConfig = false
+                                    }
                                 }
-                            )
+                            ) {
+                                Text("保存")
+                            }
                         }
-                    }
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        if (configManager.saveConfig(keymapConfig)) {
-                            showConfig = false
-                        }
-                    }) {
-                        Text("保存")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { showConfig = false }) {
-                        Text("取消")
                     }
                 }
-            )
+            }
         }
     }
 

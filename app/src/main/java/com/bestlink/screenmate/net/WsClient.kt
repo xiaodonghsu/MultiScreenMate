@@ -189,6 +189,53 @@ class WsClient(
         return sendKey(content)
     }
 
+    suspend fun ensureConnectedAndSendJson(jsonData: Map<String, Any>): Boolean {
+        if (webSocket == null || !host.connected) {
+            Log.w(TAG, "ensureConnectedAndSendJson: not connected, trying reconnect for ${host.ip}")
+            val ok = try { connect() } catch (e: Exception) {
+                Log.e(TAG, "reconnect failed for ${host.ip}: ${e.message}", e)
+                false
+            }
+            if (!ok) {
+                Log.w(TAG, "ensureConnectedAndSendJson: reconnect failed for ${host.ip}")
+                return false
+            }
+            Log.d(TAG, "ensureConnectedAndSendJson: reconnect success for ${host.ip}")
+        }
+        return sendJson(jsonData)
+    }
+
+    fun sendJson(jsonData: Map<String, Any>): Boolean {
+        if (webSocket == null || !host.connected) {
+            Log.w(TAG, "sendJson failed: WebSocket not connected for ${host.ip}")
+            return false
+        }
+        
+        try {
+            // 将Map转换为JSON字符串
+            val jsonObject = JSONObject()
+            jsonData.forEach { (key, value) ->
+                when (value) {
+                    is String -> jsonObject.put(key, value)
+                    is Int -> jsonObject.put(key, value)
+                    is Boolean -> jsonObject.put(key, value)
+                    is Double -> jsonObject.put(key, value)
+                    is Float -> jsonObject.put(key, value)
+                    is Long -> jsonObject.put(key, value)
+                    else -> jsonObject.put(key, value.toString())
+                }
+            }
+            
+            val payload = jsonObject.toString()
+            val sent = webSocket?.send(payload) == true
+            Log.d(TAG, "sendJson to ${host.ip}, payload=$payload, sent=$sent")
+            return sent
+        } catch (e: Exception) {
+            Log.e(TAG, "sendJson failed: Error creating JSON for ${host.ip}: ${e.message}", e)
+            return false
+        }
+    }
+
     fun disconnect() {
         Log.d(TAG, "Disconnecting ${host.ip}")
         try {
@@ -198,5 +245,10 @@ class WsClient(
         }
         host.connected = false
         webSocket = null
+    }
+    
+    // 获取host id，用于语音消息发送
+    fun getHostId(): String {
+        return host.id ?: initialId
     }
 }

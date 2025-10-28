@@ -7,12 +7,15 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -53,99 +56,113 @@ fun CustomControlScreen(
         "C" to "●"
     )
     
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.LightGray)
-            .clipToBounds()
     ) {
-        // 共享的画布容器
-        Box(
+        // 控制按钮和主机信息区域 - 移到页面最上方
+        Row(
             modifier = Modifier
-                .size(400.dp)
-                .background(Color.White.copy(alpha = 0.1f))
-                .align(Alignment.Center)
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // 渲染所有按钮到同一个画布
-            buttonLayout.buttons.forEach { config ->
-                DraggableButton(
-                    config = config,
-                    label = buttonLabels[config.key] ?: "?",
-                    editMode = editMode,
-                    isSelected = selectedButtonId == config.key,
-                    onConfigChange = { newConfig ->
-                        buttonLayout = buttonLayout.copy(
-                            buttons = buttonLayout.buttons.map { 
-                                if (it.key == newConfig.key) newConfig else it 
-                            }
-                        )
-                    },
-                    onButtonClick = { key ->
-                        if (!editMode) {
-                            val keymap = configManager.loadConfig().keymap
-                            val command = when (key) {
-                                "U" -> keymap["U"] ?: "Up"
-                                "D" -> keymap["D"] ?: "Down"
-                                "L" -> keymap["L"] ?: "Left"
-                                "R" -> keymap["R"] ?: "Right"
-                                "C" -> keymap["C"] ?: "Space"
-                                else -> ""
-                            }
-                            if (command.isNotEmpty()) {
-                                // 根据配置决定是否震动
-                                val config = configManager.loadConfig()
-                                if (config.enableVibration) {
-                                    VibrationUtil.vibrateShort(context)
-                                }
-                                
-                                coroutineScope.launch {
-                                    wsClient.ensureConnectedAndSendKey(command)
-                                }
-                            }
-                        } else {
-                            // 编辑模式下点击按钮：选中或取消选中
-                            selectedButtonId = if (selectedButtonId == key) null else key
-                            Log.d("CustomControlScreen", "编辑模式选中按钮: $selectedButtonId")
+            // 主机信息卡片
+            Card {
+                Column(
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    Text("主机: ${host.name ?: host.ip}", style = MaterialTheme.typography.bodySmall)
+                    Text("状态: ${if (host.connected) "已连接" else "未连接"}", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            
+            // 编辑布局按钮
+            Button(
+                onClick = {
+                    editMode = !editMode
+                    if (!editMode) {
+                        // 保存布局
+                        coroutineScope.launch {
+                            buttonLayoutManager.saveLayout(buttonLayout)
                         }
                     }
-                )
+                }
+            ) {
+                Text(if (editMode) "保存布局" else "编辑布局")
             }
         }
         
-        // 编辑模式控制按钮和主机信息
+        // 主控制区域
         Box(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
+                .weight(1f)
+                .clipToBounds()
         ) {
-            Column(horizontalAlignment = Alignment.End) {
-                Button(
-                    onClick = {
-                        editMode = !editMode
-                        if (!editMode) {
-                            // 保存布局
-                            coroutineScope.launch {
-                                buttonLayoutManager.saveLayout(buttonLayout)
+            // 共享的画布容器
+            Box(
+                modifier = Modifier
+                    .size(400.dp)
+                    .background(Color.White.copy(alpha = 0.1f))
+                    .align(Alignment.Center)
+            ) {
+                // 渲染所有按钮到同一个画布
+                buttonLayout.buttons.forEach { config ->
+                    DraggableButton(
+                        config = config,
+                        label = buttonLabels[config.key] ?: "?",
+                        editMode = editMode,
+                        isSelected = selectedButtonId == config.key,
+                        onConfigChange = { newConfig ->
+                            buttonLayout = buttonLayout.copy(
+                                buttons = buttonLayout.buttons.map { 
+                                    if (it.key == newConfig.key) newConfig else it 
+                                }
+                            )
+                        },
+                        onButtonClick = { key ->
+                            if (!editMode) {
+                                val keymap = configManager.loadConfig().keymap
+                                val command = when (key) {
+                                    "U" -> keymap["U"] ?: "Up"
+                                    "D" -> keymap["D"] ?: "Down"
+                                    "L" -> keymap["L"] ?: "Left"
+                                    "R" -> keymap["R"] ?: "Right"
+                                    "C" -> keymap["C"] ?: "Space"
+                                    else -> ""
+                                }
+                                if (command.isNotEmpty()) {
+                                    // 根据配置决定是否震动
+                                    val config = configManager.loadConfig()
+                                    if (config.enableVibration) {
+                                        VibrationUtil.vibrateShort(context)
+                                    }
+                                    
+                                    coroutineScope.launch {
+                                        wsClient.ensureConnectedAndSendKey(command)
+                                    }
+                                }
+                            } else {
+                                // 编辑模式下点击按钮：选中或取消选中
+                                selectedButtonId = if (selectedButtonId == key) null else key
+                                Log.d("CustomControlScreen", "编辑模式选中按钮: $selectedButtonId")
                             }
                         }
-                    }
-                ) {
-                    Text(if (editMode) "保存布局" else "编辑布局")
-                }
-                
-                // 主机信息卡片
-                Card(
-                    modifier = Modifier.padding(top = 8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(8.dp)
-                    ) {
-                        Text("主机: ${host.name ?: host.ip}", style = MaterialTheme.typography.bodySmall)
-                        Text("状态: ${if (host.connected) "已连接" else "未连接"}", style = MaterialTheme.typography.bodySmall)
-                    }
+                    )
                 }
             }
+            
+            // 编辑模式控制按钮和主机信息 - 移到画布外部
+            // 这些控件现在放在主Column的底部，不会遮挡按键布局
         }
+        
+        // 语音输入面板
+        VoiceInputPanel(
+            wsClient = wsClient,
+            coroutineScope = coroutineScope
+        )
     }
 }
 

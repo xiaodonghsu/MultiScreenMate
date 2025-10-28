@@ -4,6 +4,8 @@ import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.os.Bundle
+import android.util.Log
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -75,6 +77,46 @@ class ControlActivity : ComponentActivity() {
         wsClient.disconnect()
         // 禁用NFC读取器
         disableNfcReader()
+    }
+    
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // 处理音量键事件
+        when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP -> {
+                handleVolumeKey("VOLUME_UP")
+                return true  // 消费事件，防止系统音量调节
+            }
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                handleVolumeKey("VOLUME_DOWN")
+                return true  // 消费事件，防止系统音量调节
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+    
+    private fun handleVolumeKey(volumeKey: String) {
+        val config = configManager.loadConfig()
+        val command = config.volumeKeymap[volumeKey]
+        
+        if (command != null) {
+            // 发送对应的按键命令，使用 keypress 作为命令参数
+            CoroutineScope(Dispatchers.IO).launch {
+                val id = wsClient.getHostId()
+                val payload = "{\"id\":\"$id\",\"command\":\"keypress\",\"content\":\"$command\"}"
+                wsClient.sendRawMessage(payload)
+                
+                // 根据配置决定是否震动
+                if (config.enableVibration) {
+                    try {
+                        val vibratorManager = getSystemService(android.os.VibratorManager::class.java)
+                        val vibrator = vibratorManager.defaultVibrator
+                        vibrator.vibrate(android.os.VibrationEffect.createPredefined(android.os.VibrationEffect.EFFECT_CLICK))
+                    } catch (e: Exception) {
+                        Log.e("VolumeKey", "震动失败: ${e.message}")
+                    }
+                }
+            }
+        }
     }
     
     private fun enableNfcReader() {

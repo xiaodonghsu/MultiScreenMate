@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 按键选项列表 -->
+    <string-array name="key_options">
+        <item>Left</item>
+        <item>Right</item>
+        <item>Up</item>
+        <item>Down</item>
+        <item>Space</item>
+        <item>PageUp</item>
+        <item>PageDown</item>
+    </string-array>
+    
+    <!-- 按键显示名称 -->
+    <string-array name="key_display_names">
+        <item>左键 (Left)</item>
+        <item>右键 (Right)</item>
+        <item>上键 (Up)</item>
+        <item>下键 (Down)</item>
+        <item>空格键 (Space)</item>
+        <item>上翻页 (PageUp)</item>
+        <item>下翻页 (PageDown)</item>
+    </string-array>
+    
+    <!-- 屏幕按键标签 -->
+    <string-array name="screen_key_labels">
+        <item>上键 (U)</item>
+        <item>下键 (D)</item>
+        <item>左键 (L)</item>
+        <item>右键 (R)</item>
+        <item>中键 (C)</item>
+    </string-array>
+    
+    <!-- 屏幕按键值 -->
+    <string-array name="screen_key_values">
+        <item>U</item>
+        <item>D</item>
+        <item>L</item>
+        <item>R</item>
+        <item>C</item>
+    </string-array>
+    
+    <!-- 音量键标签 -->
+    <string-array name="volume_key_labels">
+        <item>音量+键</item>
+        <item>音量-键</item>
+    </string-array>
+    
+    <!-- 音量键值 -->
+    <string-array name="volume_key_values">
+        <item>VOLUME_UP</item>
+        <item>VOLUME_DOWN</item>
+    </string-array>
+</resources>
