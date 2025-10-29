@@ -546,7 +546,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(24.dp)
                     ) {
                         Text(
-                            text = "按键配置",
+                            text = "通用配置",
                             style = MaterialTheme.typography.headlineSmall
                         )
                         
@@ -558,6 +558,25 @@ class MainActivity : ComponentActivity() {
                                 .verticalScroll(rememberScrollState())
                                 .weight(1f, fill = false)
                         ) {
+                            // 端口配置选项（提升到第一排）
+                            Text("扫描端口配置", style = MaterialTheme.typography.titleSmall)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("扫描端口:")
+                                OutlinedTextField(
+                                    value = keymapConfig.scanPort.toString(),
+                                    onValueChange = { newValue ->
+                                        val port = newValue.toIntOrNull() ?: 56789
+                                        keymapConfig = keymapConfig.copy(scanPort = port)
+                                    },
+                                    modifier = Modifier.width(150.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
                             // 屏幕按键映射
                             Text("屏幕按键映射", style = MaterialTheme.typography.titleSmall)
                             screenKeyValues.forEachIndexed { index, key ->
@@ -711,25 +730,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             
-                            // 端口配置选项
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("扫描端口配置", style = MaterialTheme.typography.titleSmall)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("扫描端口:")
-                                OutlinedTextField(
-                                    value = keymapConfig.scanPort.toString(),
-                                    onValueChange = { newValue ->
-                                        val port = newValue.toIntOrNull() ?: 56789
-                                        keymapConfig = keymapConfig.copy(scanPort = port)
-                                    },
-                                    modifier = Modifier.width(150.dp)
-                                )
-                            }
+
                         }
                         
                         Spacer(modifier = Modifier.height(16.dp))

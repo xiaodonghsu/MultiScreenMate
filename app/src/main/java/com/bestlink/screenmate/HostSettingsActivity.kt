@@ -1,6 +1,5 @@
 package com.bestlink.screenmate
 
-import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.os.Bundle
@@ -11,7 +10,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.TextFieldValue
@@ -39,8 +37,13 @@ class HostSettingsActivity : ComponentActivity() {
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         deviceId = UUIDManager.getOrCreateUUID(this)
         
-        // 从Intent获取主机信息
-        host = intent.getSerializableExtra("host") as Host
+        // 从Intent获取主机信息（兼容API 33+的新方法）
+        host = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            intent.getSerializableExtra("host", Host::class.java)!!
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getSerializableExtra("host") as Host
+        }
         
         // 创建WebSocket客户端
         wsClient = WsClient(host, name = "ScreenMate", initialId = deviceId, useTls = true)

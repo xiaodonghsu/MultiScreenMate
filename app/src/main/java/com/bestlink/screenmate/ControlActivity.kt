@@ -10,16 +10,12 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
 import com.bestlink.screenmate.config.ConfigManager
 import com.bestlink.screenmate.net.Host
 import com.bestlink.screenmate.net.WsClient
 import com.bestlink.screenmate.ui.CustomControlScreen
 import com.bestlink.screenmate.util.UUIDManager
 import kotlinx.coroutines.*
-import java.io.File
-import org.json.JSONArray
 
 class ControlActivity : ComponentActivity() {
     private lateinit var configManager: ConfigManager
@@ -34,8 +30,14 @@ class ControlActivity : ComponentActivity() {
         // 控制界面保持屏幕常亮
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
-        // 从Intent获取主机信息
-        host = intent.getSerializableExtra("host") as Host
+        // 从Intent获取主机信息（兼容API 33+的新方法）
+        val hostExtra: Host = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            intent.getSerializableExtra("host", Host::class.java)!!
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getSerializableExtra("host") as Host
+        }
+        host = hostExtra
         configManager = ConfigManager(this)
         
         // 使用主机对象中保存的端口（从扫描结果中获取）
@@ -171,8 +173,13 @@ class ControlActivity : ComponentActivity() {
     
     // 从Intent或共享存储中加载主机列表
     private fun loadHostsFromConfig(): List<Host> {
-        // 尝试从Intent中获取主机列表
-        val hostsFromIntent = intent.getSerializableExtra("hosts") as? Array<Host>
+        // 尝试从Intent中获取主机列表（兼容API 33+的新方法）
+        val hostsFromIntent: Array<Host>? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            intent.getSerializableExtra("hosts", Array<Host>::class.java)
+        } else {
+            @Suppress("DEPRECATION", "UNCHECKED_CAST")
+            intent.getSerializableExtra("hosts") as? Array<Host>
+        }
         if (hostsFromIntent != null) {
             return hostsFromIntent.toList()
         }
