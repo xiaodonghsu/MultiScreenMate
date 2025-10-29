@@ -573,7 +573,7 @@ class MainActivity : ComponentActivity() {
                                         val port = newValue.toIntOrNull() ?: 56789
                                         keymapConfig = keymapConfig.copy(scanPort = port)
                                     },
-                                    modifier = Modifier.width(150.dp)
+                                    modifier = Modifier.width(150.dp).height(48.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.height(16.dp))
@@ -605,7 +605,7 @@ class MainActivity : ComponentActivity() {
                                             value = currentValue,
                                             onValueChange = {},
                                             readOnly = true,
-                                            modifier = Modifier.fillMaxWidth()
+                                            modifier = Modifier.fillMaxWidth().height(48.dp)
                                         )
                                         
                                         // 下拉箭头和点击区域
@@ -673,7 +673,7 @@ class MainActivity : ComponentActivity() {
                                             value = currentValue,
                                             onValueChange = {},
                                             readOnly = true,
-                                            modifier = Modifier.fillMaxWidth()
+                                            modifier = Modifier.fillMaxWidth().height(48.dp)
                                         )
                                         
                                         // 下拉箭头和点击区域

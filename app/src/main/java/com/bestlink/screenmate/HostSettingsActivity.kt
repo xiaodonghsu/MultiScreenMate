@@ -230,7 +230,7 @@ fun HostSettingsScreen(
                     Text("最大长度20字符，当前${hostName.text.length}/20")
                 },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().height(40.dp)
             )
 
             // Tag ID设置
@@ -249,7 +249,7 @@ fun HostSettingsScreen(
                         Text("通过NFC读取或手动输入")
                     },
                     singleLine = true,
-                    modifier = Modifier.weight(0.7f)
+                    modifier = Modifier.weight(0.7f).height(40.dp)
                 )
 
                 Button(
@@ -260,7 +260,7 @@ fun HostSettingsScreen(
                         // 通过回调通知Activity重置NFC标签ID
                         onNfcTagRead("")
                     },
-                    modifier = Modifier.weight(0.3f)
+                    modifier = Modifier.weight(0.3f).height(40.dp)
                 ) {
                     Text("NFC读取")
                 }
@@ -288,7 +288,7 @@ fun HostSettingsScreen(
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(40.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
