@@ -279,7 +279,8 @@ class MainActivity : ComponentActivity() {
                             cidrInput = it
                             inputError = null
                         },
-                        label = { Text("扫描CIDR") },
+                        label = { Text("扫描目标") },
+                        placeholder = { Text("cidr: 192.168.1.6/24  socket: 192.168.1.6:12345") },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
@@ -337,51 +338,77 @@ class MainActivity : ComponentActivity() {
                 Button(
                     enabled = !scanning,
                     onClick = {
-                        // 检查WiFi连接
-                        if (!isWifiConnected()) {
-                            Toast.makeText(this@MainActivity, "请先连接到WiFi网络", Toast.LENGTH_LONG).show()
+                        // 检查WiFi连接（对于Socket模式，不强制要求WiFi）
+                        val scanTarget = HostScanner.parseScanTarget(cidrInput.text)
+                        if (scanTarget == null) {
+                            // 提供更详细的错误提示
+                            val errorMsg = when {
+                                cidrInput.text.trim().isEmpty() -> "请输入扫描目标"
+                                else -> "请输入合法的扫描目标：\n1. CIDR格式：IP地址/掩码（如192.168.1.1/24）\n2. Socket格式：IP:端口 或 域名:端口（如192.168.1.100:56789）"
+                            }
+                            Toast.makeText(this@MainActivity, errorMsg, Toast.LENGTH_LONG).show()
+                            return@Button
+                        }
+                        
+                        // 对于CIDR模式，检查WiFi连接
+                        if (scanTarget.type == HostScanner.TargetType.CIDR && !isWifiConnected()) {
+                            Toast.makeText(this@MainActivity, "CIDR扫描需要WiFi网络连接", Toast.LENGTH_LONG).show()
                             return@Button
                         }
                         
                         scanning = true
-                        // 重新扫描（按输入CIDR，支持掩码24-32）
-                        val cidrInfo = HostScanner.parseCidr(cidrInput.text)
-                        if (cidrInfo == null) {
-                            // 提供更详细的错误提示
-                            val errorMsg = when {
-                                cidrInput.text.trim().isEmpty() -> "请输入CIDR地址"
-                                !cidrInput.text.contains("/") -> "CIDR格式错误，请使用格式：IP地址/掩码（如192.168.1.1/24）"
-                                else -> "请输入合法的CIDR地址，掩码范围24-32，且地址不能为0.0.0.0"
-                            }
-                            Toast.makeText(this@MainActivity, errorMsg, Toast.LENGTH_LONG).show()
-                            scanning = false
-                        } else {
-                            // 保存CIDR到文件
-                            val cidrFile = File(cacheDir, "cidr.txt")
-                            cidrFile.writeText(cidrInput.text)
+                        
+                        // 保存输入到文件
+                        val cidrFile = File(cacheDir, "cidr.txt")
+                        cidrFile.writeText(cidrInput.text)
+                        
+                        scanningIps = emptyList()
+                        CoroutineScope(Dispatchers.IO).launch {
+                            // 使用ConfigManager中的端口配置（对于CIDR模式）
+                            val config = configManager.loadConfig()
+                            val defaultPort = config.scanPort
                             
-                            scanningIps = emptyList()
-                            CoroutineScope(Dispatchers.IO).launch {
-                                // 使用ConfigManager中的端口配置
-                                val config = configManager.loadConfig()
-                                val port = config.scanPort
-                                val found = HostScanner.scanCidr(
-                                    cidrInfo,
-                                    appName,
-                                    deviceId,
-                                    port = port,
-                                    onProgress = { ip -> uiScope.launch { scanningIps = scanningIps + ip } },
-                                    onFinish = { ip -> uiScope.launch { scanningIps = scanningIps - ip } }
-                                )
-                                withContext(Dispatchers.Main) {
-                                    hosts = found
-                                    startClients(found)
-                                    scanning = false
-                                    // 清除选择，或按需保留
-                                    selected = emptySet()
-                                    onSelectionChanged(selected)
-                                    inputError = null
+                            val found = when (scanTarget.type) {
+                                HostScanner.TargetType.CIDR -> {
+                                    val cidrInfo = HostScanner.parseCidr(scanTarget.target)
+                                    if (cidrInfo != null) {
+                                        HostScanner.scanCidr(
+                                            cidrInfo,
+                                            appName,
+                                            deviceId,
+                                            port = defaultPort,
+                                            onProgress = { ip -> uiScope.launch { scanningIps = scanningIps + ip } },
+                                            onFinish = { ip -> uiScope.launch { scanningIps = scanningIps - ip } }
+                                        )
+                                    } else {
+                                        emptyList()
+                                    }
                                 }
+                                HostScanner.TargetType.SOCKET -> {
+                                    val port = scanTarget.port ?: defaultPort
+                                    HostScanner.scanSocket(
+                                        scanTarget.target,
+                                        port,
+                                        appName,
+                                        deviceId,
+                                        onProgress = { ip -> uiScope.launch { scanningIps = scanningIps + ip } },
+                                        onFinish = { ip -> uiScope.launch { scanningIps = scanningIps - ip } }
+                                    )
+                                }
+                            }
+                            
+                            withContext(Dispatchers.Main) {
+                                hosts = found
+                                startClients(found)
+                                
+                                // 保存主机列表到SharedPreferences，确保NFC切换功能能获取正确的端口信息
+                                saveHostsToSharedPreferences(found)
+                                
+                                scanning = false
+                                // 清除选择，或按需保留
+                                selected = emptySet()
+                                onSelectionChanged(selected)
+                                inputError = null
                             }
                         }
                     },
@@ -768,6 +795,28 @@ class MainActivity : ComponentActivity() {
             CoroutineScope(Dispatchers.IO).launch {
                 clients[ip]?.ensureConnectedAndSendKey(content)
             }
+        }
+    }
+    
+    // 保存主机列表到SharedPreferences，确保NFC切换功能能获取正确的端口信息
+    private fun saveHostsToSharedPreferences(hosts: List<Host>) {
+        try {
+            val jsonArray = org.json.JSONArray()
+            hosts.forEach { host ->
+                val hostObj = org.json.JSONObject()
+                hostObj.put("ip", host.ip)
+                hostObj.put("port", host.port)
+                host.name?.let { hostObj.put("name", it) }
+                host.id?.let { hostObj.put("id", it) }
+                host.tagId?.let { hostObj.put("tagId", it) }
+                hostObj.put("connected", host.connected)
+                jsonArray.put(hostObj)
+            }
+            
+            val sharedPrefs = getSharedPreferences("screenmate_hosts", MODE_PRIVATE)
+            sharedPrefs.edit().putString("hosts_list", jsonArray.toString()).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "保存主机列表失败: ${e.message}")
         }
     }
 }

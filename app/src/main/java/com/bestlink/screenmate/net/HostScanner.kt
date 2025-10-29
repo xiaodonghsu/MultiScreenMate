@@ -27,6 +27,47 @@ object HostScanner {
     // 从 CIDR（如 "192.168.1.23/24"）解析CIDR信息；支持掩码24-32，返回CIDR对象
     data class CidrInfo(val baseIp: String, val mask: Int, val startIp: String, val endIp: String, val totalIps: Int)
     
+    // 解析扫描目标，支持两种格式：
+    // 1. CIDR格式：192.168.1.0/24
+    // 2. Socket格式：192.168.1.100:56789 或 domain.com:56789
+    data class ScanTarget(
+        val type: TargetType,
+        val target: String,
+        val port: Int? = null
+    )
+    
+    enum class TargetType {
+        CIDR, // CIDR格式扫描
+        SOCKET // 单机Socket格式扫描
+    }
+    
+    fun parseScanTarget(input: String): ScanTarget? {
+        val cleanInput = input.trim()
+        if (cleanInput.isEmpty()) return null
+        
+        // 检查是否是Socket格式（包含冒号但不包含斜杠）
+        if (cleanInput.contains(":") && !cleanInput.contains("/")) {
+            val parts = cleanInput.split(":")
+            if (parts.size == 2) {
+                val target = parts[0].trim()
+                val port = parts[1].trim().toIntOrNull()
+                if (port != null && port in 1..65535) {
+                    return ScanTarget(TargetType.SOCKET, target, port)
+                }
+            }
+        }
+        
+        // 检查是否是CIDR格式
+        if (cleanInput.contains("/")) {
+            val cidrInfo = parseCidr(cleanInput)
+            if (cidrInfo != null) {
+                return ScanTarget(TargetType.CIDR, cleanInput)
+            }
+        }
+        
+        return null
+    }
+    
     fun parseCidr(cidr: String): CidrInfo? {
         // 严格处理空格：去除所有空格，包括CIDR内部
         val cleanCidr = cidr.replace("\\s+".toRegex(), "")
@@ -87,6 +128,31 @@ object HostScanner {
             "${octets[0]}.${octets[1]}.${octets[2]}"
         } else {
             null
+        }
+    }
+
+    // 单机Socket扫描，扫描指定IP或域名的指定端口
+    suspend fun scanSocket(
+        target: String,
+        port: Int,
+        name: String,
+        initId: String,
+        onProgress: (String) -> Unit = {},
+        onFinish: (String) -> Unit = {}
+    ): List<Host> {
+        return coroutineScope {
+            val job = async(Dispatchers.IO) {
+                try {
+                    onProgress(target)
+                    val host = Host(ip = target, port = port)
+                    val client = WsClient(host, name, initId, useTls = true)
+                    val ok = try { client.connect() } catch (_: Exception) { false }
+                    if (ok) listOf(host) else emptyList()
+                } finally {
+                    onFinish(target)
+                }
+            }
+            job.await()
         }
     }
 

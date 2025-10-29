@@ -38,16 +38,8 @@ class ControlActivity : ComponentActivity() {
         host = intent.getSerializableExtra("host") as Host
         configManager = ConfigManager(this)
         
-        // 读取端口配置
-        val portFile = File(cacheDir, "port.txt")
-        val port = if (portFile.exists()) {
-            portFile.readText().trim().toIntOrNull() ?: 56789
-        } else {
-            56789
-        }
-        
-        // 使用配置的端口创建主机对象
-        val configuredHost = host.copy(port = port)
+        // 使用主机对象中保存的端口（从扫描结果中获取）
+        val configuredHost = host
         
         // 创建WebSocket客户端
         val deviceId = UUIDManager.getOrCreateUUID(this)
