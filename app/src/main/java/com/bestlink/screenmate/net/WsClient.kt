@@ -66,13 +66,15 @@ class WsClient(
                     try {
                         val json = JSONObject(text)
                         val result = json.optString("result", "")
-                        val id = json.optString("id", "")
-                        val name = json.optString("name", "")
-                        val tagId = json.optString("tag_id", "")
+                        val msgId = json.optString("msg_id", "")
                         
-                        if (result == "success" && id.isNotEmpty()) {
-                            host.id = id
-                            // 更新主机名称和tag_id
+                        // 处理握手响应
+                        if (result == "success" && json.has("content")) {
+                            val content = json.getJSONObject("content")
+                            val name = content.optString("name", "")
+                            val tagId = content.optString("tag_id", "")
+                            
+                            // 更新主机信息
                             if (name.isNotEmpty()) {
                                 host.name = name
                             }
@@ -82,11 +84,11 @@ class WsClient(
                             host.connected = true
                             missCount = 0
                             if (cont.isActive) {
-                                Log.d(TAG, "Handshake success, id=$id, name=$name, tag_id=$tagId")
+                                Log.d(TAG, "Handshake success, name=$name, tag_id=$tagId")
                                 cont.resume(true)
                             }
                         } else {
-                            Log.w(TAG, "Message parsed but not success: result='$result', id='$id'")
+                            Log.w(TAG, "Message parsed but not success: result='$result', msg_id='$msgId'")
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to parse message JSON from ${host.ip}: ${e.message}", e)
@@ -136,16 +138,22 @@ class WsClient(
         }
     }
 
+    private fun generateMessageId(): String {
+        return System.currentTimeMillis().toString() + "_" + (Math.random() * 1000).toInt()
+    }
+
     fun sendHandshake(): Boolean {
-        val msg = """{"command":"handshake","name":"$name","id":"$initialId"}"""
+        val msgId = generateMessageId()
+        val msg = """{"client_id":"$initialId","msg_id":"$msgId","command":"handshake"}"""
         val sent = webSocket?.send(msg) == true
         Log.d(TAG, "sendHandshake to ${host.ip}, sent=$sent, payload=$msg")
         return sent
     }
 
     fun sendCommand(command: String): Boolean {
-        // 保留兼容旧格式的发送（如需）
-        val payload = """{"command":"$command"}"""
+        // 使用新的协议格式
+        val msgId = generateMessageId()
+        val payload = """{"client_id":"$initialId","msg_id":"$msgId","command":"$command"}"""
         val sent = webSocket?.send(payload) == true
         Log.d(TAG, "sendCommand to ${host.ip}, cmd=$command, sent=$sent")
         return sent
@@ -156,8 +164,8 @@ class WsClient(
             Log.w(TAG, "sendKey failed: WebSocket not connected for ${host.ip}")
             return false
         }
-        val id = host.id ?: initialId
-        val payload = """{"id":"$id","command":"keypress","content":"$content"}"""
+        val msgId = generateMessageId()
+        val payload = """{"client_id":"$initialId","msg_id":"$msgId","command":"key","content":"$content"}"""
         val sent = webSocket?.send(payload) == true
         Log.d(TAG, "sendKey to ${host.ip}, payload=$payload, sent=$sent")
         return sent

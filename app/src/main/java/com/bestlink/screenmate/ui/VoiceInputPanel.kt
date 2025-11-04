@@ -268,12 +268,14 @@ private fun sendVoiceData(
     audioData: String,
     coroutineScope: CoroutineScope
 ) {
-    // 使用与sendKey相同的逻辑，包含id字段
-    val id = wsClient.getHostId()
+    // 使用与sendKey相同的逻辑，包含client_id和msg_id字段
+    val clientId = wsClient.getHostId()
+    val msgId = System.currentTimeMillis().toString() + "_" + (Math.random() * 1000).toInt()
     
     // 使用JSONObject正确构建JSON，避免Base64数据中的特殊字符导致JSON格式错误
     val jsonObject = org.json.JSONObject().apply {
-        put("id", id)
+        put("client_id", clientId)
+        put("msg_id", msgId)
         put("command", "voice")
         put("content", audioData)
     }

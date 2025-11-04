@@ -127,8 +127,10 @@ class HostSettingsActivity : ComponentActivity() {
                         put("tag_id", tagId)
                     }
                 }
+                val msgId = System.currentTimeMillis().toString() + "_" + (Math.random() * 1000).toInt()
                 val payload = JSONObject().apply {
-                    put("id", deviceId)
+                    put("client_id", deviceId)
+                    put("msg_id", msgId)
                     put("command", "set")
                     put("content", content)
                 }
@@ -210,7 +212,7 @@ fun HostSettingsScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text("当前主机信息", style = MaterialTheme.typography.titleSmall)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text("Socket: ${host.ip}:${host.port}")
                     Text("ID: ${host.id ?: "-"}")
                 }
@@ -230,7 +232,7 @@ fun HostSettingsScreen(
                     Text("最大长度20字符，当前${hostName.text.length}/20")
                 },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().height(40.dp)
+                modifier = Modifier.fillMaxWidth().height(120.dp)
             )
 
             // Tag ID设置
@@ -249,7 +251,7 @@ fun HostSettingsScreen(
                         Text("通过NFC读取或手动输入")
                     },
                     singleLine = true,
-                    modifier = Modifier.weight(0.7f).height(40.dp)
+                    modifier = Modifier.weight(0.7f).height(120.dp)
                 )
 
                 Button(
@@ -260,7 +262,7 @@ fun HostSettingsScreen(
                         // 通过回调通知Activity重置NFC标签ID
                         onNfcTagRead("")
                     },
-                    modifier = Modifier.weight(0.3f).height(40.dp)
+                    modifier = Modifier.weight(0.3f).height(80.dp)
                 ) {
                     Text("NFC读取")
                 }

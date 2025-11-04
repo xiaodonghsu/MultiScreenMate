@@ -93,10 +93,11 @@ class ControlActivity : ComponentActivity() {
         val command = config.volumeKeymap[volumeKey]
         
         if (command != null) {
-            // 发送对应的按键命令，使用 keypress 作为命令参数
+            // 发送对应的按键命令，使用 key 作为命令参数
             CoroutineScope(Dispatchers.IO).launch {
-                val id = wsClient.getHostId()
-                val payload = "{\"id\":\"$id\",\"command\":\"keypress\",\"content\":\"$command\"}"
+                val clientId = wsClient.getHostId()
+                val msgId = System.currentTimeMillis().toString() + "_" + (Math.random() * 1000).toInt()
+                val payload = "{\"client_id\":\"$clientId\",\"msg_id\":\"$msgId\",\"command\":\"key\",\"content\":\"$command\"}"
                 wsClient.sendRawMessage(payload)
                 
                 // 根据配置决定是否震动

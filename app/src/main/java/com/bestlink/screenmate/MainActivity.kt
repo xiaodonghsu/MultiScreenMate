@@ -279,7 +279,7 @@ class MainActivity : ComponentActivity() {
                             inputError = null
                         },
                         label = { Text("扫描目标") },
-                        placeholder = { Text("cidr: 192.168.1.6/24  socket: 192.168.1.6:12345") },
+                        placeholder = { Text("cidr: 192.168.1.6/24\nsocket: 192.168.1.6:56789") },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
