@@ -806,7 +806,7 @@ class MainActivity : ComponentActivity() {
                 val hostObj = org.json.JSONObject()
                 hostObj.put("ip", host.ip)
                 hostObj.put("port", host.port)
-                host.name?.let { hostObj.put("name", it) }
+                host.name?.let { hostObj.put("host_name", it) }
                 host.id?.let { hostObj.put("id", it) }
                 host.tagId?.let { hostObj.put("tagId", it) }
                 hostObj.put("connected", host.connected)

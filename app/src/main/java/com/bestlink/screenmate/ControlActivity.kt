@@ -212,7 +212,7 @@ class ControlActivity : ComponentActivity() {
                 val host = Host(
                     ip = hostObj.getString("ip"),
                     port = hostObj.getInt("port"),
-                    name = if (hostObj.has("name")) hostObj.getString("name") else null,
+                    name = if (hostObj.has("host_name")) hostObj.getString("host_name") else null,
                     id = if (hostObj.has("id")) hostObj.getString("id") else null,
                     tagId = if (hostObj.has("tagId")) hostObj.getString("tagId") else null,
                     connected = hostObj.optBoolean("connected", false)

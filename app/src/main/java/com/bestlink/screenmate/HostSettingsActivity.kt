@@ -122,7 +122,7 @@ class HostSettingsActivity : ComponentActivity() {
             try {
                 // 发送设置命令
                 val content = JSONObject().apply {
-                    put("name", name)
+                    put("host_name", name)
                     if (tagId != null) {
                         put("tag_id", tagId)
                     }
