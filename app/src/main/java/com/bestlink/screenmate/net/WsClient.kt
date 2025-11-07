@@ -71,7 +71,7 @@ class WsClient(
                         // 处理握手响应
                         if (result == "success" && json.has("content")) {
                             val content = json.getJSONObject("content")
-                            val name = content.optString("name", "")
+                            val name = content.optString("host_name", "")
                             val tagId = content.optString("tag_id", "")
                             
                             // 更新主机信息
