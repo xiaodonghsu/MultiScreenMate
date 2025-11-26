@@ -278,8 +278,8 @@ class MainActivity : ComponentActivity() {
                             cidrInput = it
                             inputError = null
                         },
-                        label = { Text("扫描目标") },
-                        placeholder = { Text("cidr: 192.168.1.6/24\nsocket: 192.168.1.6:56789") },
+                        label = { Text("扫描目标端口:${keymapConfig.scanPort}") },
+                        placeholder = { Text("cidr: 192.168.1.6/24\nsocket: 192.168.1.6:${keymapConfig.scanPort}") },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
