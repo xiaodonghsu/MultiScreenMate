@@ -38,7 +38,8 @@ import kotlinx.coroutines.launch
 fun CustomControlScreen(
     host: Host,
     wsClient: WsClient,
-    configManager: ConfigManager
+    configManager: ConfigManager,
+    refreshKey: Int = 0
 ) {
     val context = LocalContext.current
     val buttonLayoutManager = remember { ButtonLayoutManager(context) }
@@ -46,6 +47,15 @@ fun CustomControlScreen(
     var editMode by remember { mutableStateOf(false) }
     var selectedButtonId by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    
+    // 监听功能列表变化
+    var functions by remember { mutableStateOf(wsClient.serverFunctions) }
+    
+    // 当refreshKey或功能列表变化时更新
+    LaunchedEffect(refreshKey, wsClient.serverFunctions.size) {
+        Log.d("CustomControlScreen", "Updating functions state: ${wsClient.serverFunctions.size}")
+        functions = wsClient.serverFunctions.toMutableList()
+    }
     
     // 图标资源 - 使用文本标签替代图标
     val buttonLabels = mapOf(
@@ -93,6 +103,55 @@ fun CustomControlScreen(
             ) {
                 Text(if (editMode) "保存布局" else "编辑布局")
             }
+        }
+        
+        // 功能按钮区域
+        Log.d("CustomControlScreen", "Functions size: ${functions.size}, refreshKey: $refreshKey")
+        if (functions.isNotEmpty()) {
+            Log.d("CustomControlScreen", "Showing ${functions.size} function buttons")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                functions.forEach { function ->
+                    Button(
+                        onClick = {
+                            val functionContent = function["function"] ?: ""
+                            if (functionContent.isNotEmpty()) {
+                                // 根据配置决定是否震动
+                                val config = configManager.loadConfig()
+                                if (config.enableVibration) {
+                                    VibrationUtil.vibrateShort(context)
+                                }
+                                
+                                coroutineScope.launch {
+                                    val success = wsClient.sendFunction(functionContent)
+                                    Log.d("CustomControlScreen", "Function ${function["name"]} sent: $success")
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(function["name"] ?: "未知功能")
+                    }
+                }
+            }
+            
+            Divider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        } else {
+            // 调试区域：显示占位文本
+            Text(
+                text = "暂无功能按钮 (服务器未返回functions)",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
         }
         
         // 主控制区域

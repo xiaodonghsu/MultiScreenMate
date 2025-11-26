@@ -10,6 +10,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.*
 import com.bestlink.screenmate.config.ConfigManager
 import com.bestlink.screenmate.net.Host
 import com.bestlink.screenmate.net.WsClient
@@ -48,7 +49,40 @@ class ControlActivity : ComponentActivity() {
         wsClient = WsClient(configuredHost, name = "ScreenMate", initialId = deviceId, useTls = true)
         
         setContent {
-            CustomControlScreen(host = configuredHost, wsClient = wsClient, configManager = configManager)
+            // 监听主机连接状态变化，当重新连接时刷新界面
+            var refreshTrigger by remember { mutableStateOf(0) }
+            
+            LaunchedEffect(host.connected) {
+                if (host.connected) {
+                    // 延迟一下等待握手完成
+                    delay(1000)
+                    // 连接状态变化时刷新界面，以加载最新的功能按钮
+                    refreshTrigger++
+                    Log.d("ControlActivity", "Host connected, refreshing UI, functions: ${wsClient.serverFunctions.size}")
+                }
+            }
+            
+            // 也监听功能列表变化
+            LaunchedEffect(wsClient.serverFunctions.size) {
+                Log.d("ControlActivity", "Functions list changed, size: ${wsClient.serverFunctions.size}")
+                refreshTrigger++
+            }
+            
+            // 临时测试：5秒后添加测试功能
+            LaunchedEffect(Unit) {
+                delay(5000)
+                if (wsClient.serverFunctions.isEmpty()) {
+                    Log.d("ControlActivity", "Adding test functions for debugging")
+                    wsClient.addTestFunctions()
+                }
+            }
+            
+            CustomControlScreen(
+                host = configuredHost, 
+                wsClient = wsClient, 
+                configManager = configManager,
+                refreshKey = refreshTrigger
+            )
         }
         
         // 初始化NFC适配器
