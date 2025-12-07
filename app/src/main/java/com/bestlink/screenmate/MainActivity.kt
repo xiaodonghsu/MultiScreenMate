@@ -810,6 +810,17 @@ class MainActivity : ComponentActivity() {
                 host.id?.let { hostObj.put("id", it) }
                 host.tagId?.let { hostObj.put("tagId", it) }
                 hostObj.put("connected", host.connected)
+                
+                // 保存functions列表
+                val functionsArray = org.json.JSONArray()
+                host.functions.forEach { function ->
+                    val functionObj = org.json.JSONObject()
+                    functionObj.put("name", function["name"])
+                    functionObj.put("function", function["function"])
+                    functionsArray.put(functionObj)
+                }
+                hostObj.put("functions", functionsArray)
+                
                 jsonArray.put(hostObj)
             }
             

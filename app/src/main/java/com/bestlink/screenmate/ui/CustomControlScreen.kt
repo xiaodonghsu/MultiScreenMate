@@ -48,14 +48,8 @@ fun CustomControlScreen(
     var selectedButtonId by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     
-    // 监听功能列表变化
-    var functions by remember { mutableStateOf(wsClient.serverFunctions) }
-    
-    // 当refreshKey或功能列表变化时更新
-    LaunchedEffect(refreshKey, wsClient.serverFunctions.size) {
-        Log.d("CustomControlScreen", "Updating functions state: ${wsClient.serverFunctions.size}")
-        functions = wsClient.serverFunctions.toMutableList()
-    }
+    // 直接使用host中的functions，不需要状态管理
+    val functions = host.functions
     
     // 图标资源 - 使用文本标签替代图标
     val buttonLabels = mapOf(
@@ -84,8 +78,7 @@ fun CustomControlScreen(
                 Column(
                     modifier = Modifier.padding(8.dp)
                 ) {
-                    Text("主机: ${host.name ?: host.ip}", style = MaterialTheme.typography.bodySmall)
-                    Text("状态: ${if (host.connected) "已连接" else "未连接"}", style = MaterialTheme.typography.bodySmall)
+                    Text("${host.name ?: host.ip}${if (host.connected) "已连接" else "未连接"}", style = MaterialTheme.typography.bodySmall)
                 }
             }
             
@@ -106,9 +99,7 @@ fun CustomControlScreen(
         }
         
         // 功能按钮区域
-        Log.d("CustomControlScreen", "Functions size: ${functions.size}, refreshKey: $refreshKey")
         if (functions.isNotEmpty()) {
-            Log.d("CustomControlScreen", "Showing ${functions.size} function buttons")
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -143,14 +134,6 @@ fun CustomControlScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-        } else {
-            // 调试区域：显示占位文本
-            Text(
-                text = "暂无功能按钮 (服务器未返回functions)",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
             )
         }
         

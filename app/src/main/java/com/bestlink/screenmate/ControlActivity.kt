@@ -49,39 +49,10 @@ class ControlActivity : ComponentActivity() {
         wsClient = WsClient(configuredHost, name = "ScreenMate", initialId = deviceId, useTls = true)
         
         setContent {
-            // 监听主机连接状态变化，当重新连接时刷新界面
-            var refreshTrigger by remember { mutableStateOf(0) }
-            
-            LaunchedEffect(host.connected) {
-                if (host.connected) {
-                    // 延迟一下等待握手完成
-                    delay(1000)
-                    // 连接状态变化时刷新界面，以加载最新的功能按钮
-                    refreshTrigger++
-                    Log.d("ControlActivity", "Host connected, refreshing UI, functions: ${wsClient.serverFunctions.size}")
-                }
-            }
-            
-            // 也监听功能列表变化
-            LaunchedEffect(wsClient.serverFunctions.size) {
-                Log.d("ControlActivity", "Functions list changed, size: ${wsClient.serverFunctions.size}")
-                refreshTrigger++
-            }
-            
-            // 临时测试：5秒后添加测试功能
-            LaunchedEffect(Unit) {
-                delay(5000)
-                if (wsClient.serverFunctions.isEmpty()) {
-                    Log.d("ControlActivity", "Adding test functions for debugging")
-                    wsClient.addTestFunctions()
-                }
-            }
-            
             CustomControlScreen(
                 host = configuredHost, 
                 wsClient = wsClient, 
-                configManager = configManager,
-                refreshKey = refreshTrigger
+                configManager = configManager
             )
         }
         
@@ -251,6 +222,20 @@ class ControlActivity : ComponentActivity() {
                     tagId = if (hostObj.has("tagId")) hostObj.getString("tagId") else null,
                     connected = hostObj.optBoolean("connected", false)
                 )
+                
+                // 加载functions列表
+                if (hostObj.has("functions")) {
+                    val functionsArray = hostObj.getJSONArray("functions")
+                    for (j in 0 until functionsArray.length()) {
+                        val functionObj = functionsArray.getJSONObject(j)
+                        val functionMap = mapOf(
+                            "name" to functionObj.optString("name", ""),
+                            "function" to functionObj.optString("function", "")
+                        )
+                        host.functions.add(functionMap)
+                    }
+                }
+                
                 hosts.add(host)
             }
         } catch (e: Exception) {

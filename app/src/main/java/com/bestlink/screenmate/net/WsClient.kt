@@ -22,19 +22,6 @@ class WsClient(
     private val useTls: Boolean = false
 ) {
     private val TAG = "WsClient"
-    
-    // 存储服务端支持的功能
-    var serverFunctions: MutableList<Map<String, String>> = mutableListOf()
-        private set
-    
-    // 添加测试功能（临时，用于调试）
-    fun addTestFunctions() {
-        serverFunctions.clear()
-        serverFunctions.add(mapOf("name" to "人工", "function" to "switchToManualMode"))
-        serverFunctions.add(mapOf("name" to "协同", "function" to "switchToCollabrateMode"))
-        serverFunctions.add(mapOf("name" to "自动", "function" to "switchToAutoMode"))
-        Log.d(TAG, "Added test functions, total: ${serverFunctions.size}")
-    }
     private val client = run {
         val builder = OkHttpClient.Builder()
             .readTimeout(10, TimeUnit.SECONDS)
@@ -87,19 +74,19 @@ class WsClient(
                             val name = content.optString("host_name", "")
                             val tagId = content.optString("tag_id", "")
                             
-                            // 提取服务端支持的功能
+                            // 提取服务端支持的功能并存储到Host对象中
                             if (content.has("functions")) {
                                 val functionsArray = content.getJSONArray("functions")
-                                serverFunctions.clear()
+                                host.functions.clear()
                                 for (i in 0 until functionsArray.length()) {
                                     val functionObj = functionsArray.getJSONObject(i)
                                     val functionMap = mapOf(
                                         "name" to functionObj.optString("name", ""),
                                         "function" to functionObj.optString("function", "")
                                     )
-                                    serverFunctions.add(functionMap)
+                                    host.functions.add(functionMap)
                                 }
-                                Log.d(TAG, "Loaded ${serverFunctions.size} server functions")
+                                Log.d(TAG, "Loaded ${host.functions.size} server functions")
                             }
                             
                             // 更新主机信息
@@ -112,7 +99,7 @@ class WsClient(
                             host.connected = true
                             missCount = 0
                             if (cont.isActive) {
-                                Log.d(TAG, "Handshake success, name=$name, tag_id=$tagId, functions=${serverFunctions.size}")
+                                Log.d(TAG, "Handshake success, name=$name, tag_id=$tagId, functions=${host.functions.size}")
                                 cont.resume(true)
                             }
                         } else {

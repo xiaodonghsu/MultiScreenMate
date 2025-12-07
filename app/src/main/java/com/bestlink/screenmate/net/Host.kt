@@ -9,5 +9,6 @@ data class Host(
     var id: String? = null,
     var tagId: String? = null,
     var connected: Boolean = false,
-    var lastHeartbeatOkCount: Int = 0
+    var lastHeartbeatOkCount: Int = 0,
+    var functions: MutableList<Map<String, String>> = mutableListOf()
 ) : Serializable
